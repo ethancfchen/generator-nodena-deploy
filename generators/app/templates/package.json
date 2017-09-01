@@ -1,0 +1,26 @@
+{
+  "name": "<%= appname %>",
+  "version": "0.0.0",
+  "description": "<%= appname %>",
+  "license": "ISC",
+  "author": {
+    "name": "<%= author.name %>",
+    "email": "<%= author.email %>"
+  },
+  "main": "gulpfile.js",
+  "dependencies": {
+    "config": "^1.26.2",
+    "gulp": "^3.9.1",
+    "gulp-git": "^2.4.2",
+    "gulp-load-plugins": "^1.5.0",
+    "gulp-task-loader": "^1.4.4",
+    "prepend-file": "^1.3.1",
+    "rootpath": "^0.1.2",
+    "yargs": "^8.0.2"
+  },
+  "devDependencies": {
+    "eslint": "^4.1.0",
+    "eslint-config-google": "^0.9.1",
+    "eslint-config-xo-space": "^0.16.0"
+  }
+}
