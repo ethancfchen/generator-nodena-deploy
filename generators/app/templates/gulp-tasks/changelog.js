@@ -44,11 +44,11 @@ function gitTagList() {
 }
 
 function getDiffTags(tags) {
-  const targetTag = argv.version;
+  let targetTag = argv.version;
   return new Promise((resolve, reject) => {
     let prevTag = '';
     if (!tags.includes(targetTag)) {
-      reject(new Error(`Tag not found: ${targetTag}`));
+      targetTag = 'HEAD';
     }
     prevTag = tags[tags.indexOf(targetTag) - 1] || '';
     resolve({prevTag, targetTag});
