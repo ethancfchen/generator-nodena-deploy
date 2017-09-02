@@ -4,19 +4,16 @@ const yargs = require('yargs');
 const $ = require('gulp-load-plugins')();
 const path = require('path');
 const fs = require('fs');
-const prependFile = require('prepend-file');
 
 const ARGV_SETUP = {
   t: {
     alias: 'target',
     type: 'string',
-    nargs: 1,
     demand: true,
   },
   v: {
     alias: 'version',
     type: 'string',
-    nargs: 1,
     demand: true,
   },
 };
@@ -27,7 +24,6 @@ const PLACEHOLDER = {
 };
 
 let argv = {};
-let allTagsFromRepo = [];
 
 function gitTagList() {
   const command = ['tag', '-l', '--sort=v:refname'].join(' ');
@@ -35,6 +31,7 @@ function gitTagList() {
     $.git.exec({
       args: command,
       maxBuffer: config.stdoutMaxBuffer,
+      quiet: true,
     }, (error, stdout) => {
       if (error) {
         reject(error);
@@ -45,14 +42,13 @@ function gitTagList() {
 }
 
 function getDiffTags(allTags) {
-  let targetTag = argv.version;
+  const targetTag = argv.version;
   return new Promise((resolve, reject) => {
     let prevTag = '';
     if (!allTags.includes(targetTag)) {
-      targetTag = 'HEAD';
+      reject(new Error(`Tag not found: ${targetTag}`));
     }
     prevTag = allTags[allTags.indexOf(targetTag) - 1] || '';
-    allTagsFromRepo = allTags;
     resolve({prevTag, targetTag});
   });
 }
@@ -69,6 +65,7 @@ function gitLogNameStatus(tag) {
     $.git.exec({
       args: command,
       maxBuffer: config.stdoutMaxBuffer,
+      quiet: true,
     }, (error, stdout) => {
       if (error) {
         reject(error);
@@ -81,12 +78,7 @@ function gitLogNameStatus(tag) {
 function gitLogCommitTime(logBody) {
   const version = argv.version;
   return new Promise((resolve, reject) => {
-    let targetTag = version;
-    let args = '';
-    if (!allTagsFromRepo.includes(targetTag)) {
-      targetTag = 'HEAD';
-    }
-    args = ['log', '-1', '--format=%ai', targetTag].join(' ');
+    const args = ['log', '-1', '--format=%ai', version].join(' ');
     $.git.exec({
       args,
       maxBuffer: config.stdoutMaxBuffer,
@@ -106,14 +98,12 @@ function gitLogCommitTime(logBody) {
 function generateChangelog(log) {
   return new Promise((resolve, reject) => {
     const templateFile = config.template.changelog;
-    const changelogFile = config.readme;
     fs.readFile(templateFile, 'utf8', (error, template) => {
       const logContent = template
         .replace(PLACEHOLDER.tag, log.version)
         .replace(PLACEHOLDER.time, log.time)
         .replace(PLACEHOLDER.log, log.body);
-      prependFile(changelogFile, logContent + '\n');
-      resolve();
+      resolve(logContent);
     });
   });
 }
@@ -125,6 +115,9 @@ module.exports = function(taskCallback) {
     .then((tag) => gitLogNameStatus(tag))
     .then((logBody) => gitLogCommitTime(logBody))
     .then((log) => generateChangelog(log))
-    .then(taskCallback)
+    .then((logContent) => {
+      process.stdout.write(logContent);
+      taskCallback();
+    })
     .catch(taskCallback);
 };
