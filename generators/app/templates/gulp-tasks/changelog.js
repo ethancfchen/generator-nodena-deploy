@@ -58,7 +58,7 @@ function getDiffTags(tags) {
 function gitLogNameStatus(tags) {
   const srcTag = tags.prevTag;
   const destTag = tags.targetTag;
-  const targetPath = path.join(config.base.dist, argv.target);
+  const targetPath = path.join(config.dist, argv.target);
   return new Promise((resolve, reject) => {
     const command = [
       'log', '--name-status', '--oneline', '--pretty=""',

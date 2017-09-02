@@ -22,6 +22,23 @@ const ARGV_SETUP = {
 
 let argv = {};
 
+function gitCheckoutTo(version) {
+  const targetTag = version || 'HEAD';
+  const targetPath = path.join(config.dist, argv.target);
+  return new Promise((resolve, reject) => {
+    const command = ['checkout', targetTag, targetPath].join(' ');
+    $.git.exec({
+      args: command,
+      maxBuffer: config.stdoutMaxBuffer,
+    }, (error) => {
+      if (error) {
+        reject(error);
+      }
+      resolve();
+    });
+  });
+}
+
 function gitTagList() {
   const command = ['tag', '-l', '--sort=v:refname'].join(' ');
   return new Promise((resolve, reject) => {
@@ -52,7 +69,7 @@ function getDiffTags(tags) {
 function gitDiffTree(tags) {
   const srcTag = tags.prevTag;
   const destTag = tags.targetTag;
-  const targetPath = path.join(config.base.dist, argv.target);
+  const targetPath = path.join(config.dist, argv.target);
   return new Promise((resolve, reject) => {
     const command = [
       'diff-tree', '-r', '--name-only', '--no-commit-id',
@@ -70,25 +87,31 @@ function gitDiffTree(tags) {
   });
 }
 
+function archive(files) {
+  const target = argv.target;
+  const version = argv.version;
+  const distPath = path.join(config.dist, target);
+  return new Promise((resolve, reject) => {
+    const blobs = files.map((filepath) => {
+      return filepath.replace(distPath, '**');
+    });
+    gulp
+      .src(blobs, {cwd: distPath})
+      .pipe($.tar(`${version}.patch.tar`))
+      .pipe($.gzip())
+      .pipe(gulp.dest('./', {cwd: config.archive}))
+      .on('end', resolve)
+      .on('error', reject);
+  });
+}
+
 module.exports = function(taskCallback) {
   argv = yargs.option(ARGV_SETUP).argv;
-
-  gitTagList()
-    .then(getDiffTags)
-    .then(gitDiffTree)
-    .then((files) => {
-      const target = argv.target;
-      const version = argv.version;
-      const distPath = path.join(config.base.dist, target);
-      const blobs = files.map((filepath) => {
-        return filepath.replace(distPath, '**');
-      });
-      gulp
-        .src(blobs, {cwd: distPath})
-        .pipe($.tar(`${version}.patch.tar`))
-        .pipe($.gzip())
-        .pipe(gulp.dest('./', {cwd: config.archive.patch}));
-      taskCallback();
-    })
+  gitCheckoutTo(argv.version)
+    .then(gitTagList)
+    .then((tags) => getDiffTags(tags))
+    .then((tags) => gitDiffTree(tags))
+    .then((files) => archive(files))
+    .then(gitCheckoutTo)
     .catch(taskCallback);
 };
