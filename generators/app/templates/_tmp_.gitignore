@@ -6,6 +6,6 @@ npm-debug.log*
 # Dependency directory
 node_modules
 
-# Temperory
-target
-patch
+# Archive
+archive
+!gulp-tasks/archive
