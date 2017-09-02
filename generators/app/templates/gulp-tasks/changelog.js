@@ -27,6 +27,7 @@ const PLACEHOLDER = {
 };
 
 let argv = {};
+let allTagsFromRepo = [];
 
 function gitTagList() {
   const command = ['tag', '-l', '--sort=v:refname'].join(' ');
@@ -43,21 +44,22 @@ function gitTagList() {
   });
 }
 
-function getDiffTags(tags) {
+function getDiffTags(allTags) {
   let targetTag = argv.version;
   return new Promise((resolve, reject) => {
     let prevTag = '';
-    if (!tags.includes(targetTag)) {
+    if (!allTags.includes(targetTag)) {
       targetTag = 'HEAD';
     }
-    prevTag = tags[tags.indexOf(targetTag) - 1] || '';
+    prevTag = allTags[allTags.indexOf(targetTag) - 1] || '';
+    allTagsFromRepo = allTags;
     resolve({prevTag, targetTag});
   });
 }
 
-function gitLogNameStatus(tags) {
-  const srcTag = tags.prevTag;
-  const destTag = tags.targetTag;
+function gitLogNameStatus(tag) {
+  const srcTag = tag.prevTag;
+  const destTag = tag.targetTag;
   const targetPath = path.join(config.dist, argv.target);
   return new Promise((resolve, reject) => {
     const command = [
@@ -79,7 +81,12 @@ function gitLogNameStatus(tags) {
 function gitLogCommitTime(logBody) {
   const version = argv.version;
   return new Promise((resolve, reject) => {
-    const args = ['log', '-1', '--format=%ai', version].join(' ');
+    let targetTag = version;
+    let args = '';
+    if (!allTagsFromRepo.includes(targetTag)) {
+      targetTag = 'HEAD';
+    }
+    args = ['log', '-1', '--format=%ai', targetTag].join(' ');
     $.git.exec({
       args,
       maxBuffer: config.stdoutMaxBuffer,
@@ -114,9 +121,10 @@ function generateChangelog(log) {
 module.exports = function(taskCallback) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitTagList()
-    .then(getDiffTags)
-    .then(gitLogNameStatus)
-    .then(gitLogCommitTime)
-    .then(generateChangelog)
+    .then((allTags) => getDiffTags(allTags))
+    .then((tag) => gitLogNameStatus(tag))
+    .then((logBody) => gitLogCommitTime(logBody))
+    .then((log) => generateChangelog(log))
+    .then(taskCallback)
     .catch(taskCallback);
 };
