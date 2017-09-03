@@ -73,7 +73,8 @@ function gitDiffTree(tags) {
   return new Promise((resolve, reject) => {
     const command = [
       'diff-tree', '-r', '--name-only', '--no-commit-id',
-      `${srcTag}..${destTag}`, '--', targetPath,
+      srcTag.length > 0 ? `${srcTag}..${destTag}` : destTag,
+      '--', targetPath,
     ].join(' ');
     $.git.exec({
       args: command,
