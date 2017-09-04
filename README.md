@@ -5,6 +5,8 @@
 [![Dependency Status][daviddm-image]][daviddm-url] 
 [![Coverage percentage][coveralls-image]][coveralls-url]
 
+> Nodena deployment tools Yeoman generator
+
 ## Installation
 
 First, install [Yeoman](http://yeoman.io) and generator-nodena-deploy
