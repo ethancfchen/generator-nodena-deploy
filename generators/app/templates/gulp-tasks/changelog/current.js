@@ -13,8 +13,8 @@ const ARGV_SETUP = {
     type: 'string',
     demand: true,
   },
-  v: {
-    alias: 'version',
+  n: {
+    alias: 'new-version',
     type: 'string',
     demand: true,
   },
@@ -79,7 +79,7 @@ function generateChangelog(logBody) {
   return new Promise((resolve, reject) => {
     fs.readFile(templateFile, 'utf8', (error, template) => {
       const logContent = template
-        .replace(PLACEHOLDER.tag, argv.version)
+        .replace(PLACEHOLDER.tag, argv.newVersion)
         .replace(PLACEHOLDER.time, moment().format(TIME_FORMAT))
         .replace(PLACEHOLDER.log, logBody);
       prependFile(changelogFile, logContent + '\n');
@@ -88,12 +88,12 @@ function generateChangelog(logBody) {
   });
 }
 
-module.exports = function(taskCallback) {
+module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitAdd()
     .then(gitStatus)
     .then((logBody) => generateChangelog(logBody))
     .then(gitReset)
     .catch(gitReset)
-    .then(taskCallback);
+    .then(taskDone);
 };

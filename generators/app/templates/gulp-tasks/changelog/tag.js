@@ -11,8 +11,8 @@ const ARGV_SETUP = {
     type: 'string',
     demand: true,
   },
-  v: {
-    alias: 'version',
+  n: {
+    alias: 'new-version',
     type: 'string',
     demand: true,
   },
@@ -42,7 +42,7 @@ function gitTagList() {
 }
 
 function getDiffTags(allTags) {
-  const targetTag = argv.version;
+  const targetTag = argv.newVersion;
   return new Promise((resolve, reject) => {
     let prevTag = '';
     if (!allTags.includes(targetTag)) {
@@ -76,7 +76,7 @@ function gitLogNameStatus(tag) {
 }
 
 function gitLogCommitTime(logBody) {
-  const version = argv.version;
+  const version = argv.newVersion;
   return new Promise((resolve, reject) => {
     const args = ['log', '-1', '--format=%ai', version].join(' ');
     $.git.exec({
@@ -108,7 +108,7 @@ function generateChangelog(log) {
   });
 }
 
-module.exports = function(taskCallback) {
+module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitTagList()
     .then((allTags) => getDiffTags(allTags))
@@ -117,7 +117,7 @@ module.exports = function(taskCallback) {
     .then((log) => generateChangelog(log))
     .then((logContent) => {
       process.stdout.write(logContent);
-      taskCallback();
+      taskDone();
     })
-    .catch(taskCallback);
+    .catch(taskDone);
 };

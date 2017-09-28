@@ -12,8 +12,8 @@ const ARGV_SETUP = {
     nargs: 1,
     demand: true,
   },
-  v: {
-    alias: 'version',
+  n: {
+    alias: 'new-version',
     type: 'string',
     nargs: 1,
     demand: true,
@@ -41,12 +41,12 @@ function gitCheckoutTo(version) {
 
 function archive(files) {
   const target = argv.target;
-  const version = argv.version;
+  const newVersion = argv.newVersion;
   const distPath = path.join(config.dist, target);
   return new Promise((resolve, reject) => {
     gulp
       .src('**/*', {cwd: distPath})
-      .pipe($.tar(`${version}.tar`))
+      .pipe($.tar(`${newVersion}.tar`))
       .pipe($.gzip())
       .pipe(gulp.dest('./', {cwd: config.archive}))
       .on('end', resolve)
@@ -54,10 +54,10 @@ function archive(files) {
   });
 }
 
-module.exports = function(taskCallback) {
+module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
-  gitCheckoutTo(argv.version)
+  gitCheckoutTo(argv.newVersion)
     .then((files) => archive(files))
     .then(gitCheckoutTo)
-    .catch(taskCallback);
+    .catch(taskDone);
 };
