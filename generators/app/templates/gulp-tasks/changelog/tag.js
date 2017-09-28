@@ -11,8 +11,8 @@ const ARGV_SETUP = {
     type: 'string',
     demand: true,
   },
-  n: {
-    alias: 'new-version',
+  g: {
+    alias: 'target-version',
     type: 'string',
     demand: true,
   },
@@ -42,7 +42,7 @@ function gitTagList() {
 }
 
 function getDiffTags(allTags) {
-  const targetTag = argv.newVersion;
+  const targetTag = argv.targetVersion;
   return new Promise((resolve, reject) => {
     let prevTag = '';
     if (!allTags.includes(targetTag)) {
@@ -76,7 +76,7 @@ function gitLogNameStatus(tag) {
 }
 
 function gitLogCommitTime(logBody) {
-  const version = argv.newVersion;
+  const version = argv.targetVersion;
   return new Promise((resolve, reject) => {
     const args = ['log', '-1', '--format=%ai', version].join(' ');
     $.git.exec({

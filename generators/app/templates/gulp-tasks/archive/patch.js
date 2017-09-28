@@ -12,8 +12,8 @@ const ARGV_SETUP = {
     nargs: 1,
     demand: true,
   },
-  n: {
-    alias: 'new-version',
+  g: {
+    alias: 'target-version',
     type: 'string',
     nargs: 1,
     demand: true,
@@ -55,7 +55,7 @@ function gitTagList() {
 }
 
 function getDiffTags(tags) {
-  const targetTag = argv.newVersion;
+  const targetTag = argv.targetVersion;
   return new Promise((resolve, reject) => {
     let prevTag = '';
     if (!tags.includes(targetTag)) {
@@ -90,7 +90,7 @@ function gitDiffTree(tags) {
 
 function archive(files) {
   const target = argv.target;
-  const newVersion = argv.newVersion;
+  const targetVersion = argv.targetVersion;
   const distPath = path.join(config.dist, target);
   return new Promise((resolve, reject) => {
     const blobs = files.map((filepath) => {
@@ -98,7 +98,7 @@ function archive(files) {
     });
     gulp
       .src(blobs, {cwd: distPath})
-      .pipe($.tar(`${newVersion}.patch.tar`))
+      .pipe($.tar(`${targetVersion}.patch.tar`))
       .pipe($.gzip())
       .pipe(gulp.dest('./', {cwd: config.archive}))
       .on('end', resolve)
@@ -108,7 +108,7 @@ function archive(files) {
 
 module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
-  gitCheckoutTo(argv.newVersion)
+  gitCheckoutTo(argv.targetVersion)
     .then(gitTagList)
     .then((tags) => getDiffTags(tags))
     .then((tags) => gitDiffTree(tags))

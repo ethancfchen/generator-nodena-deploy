@@ -13,8 +13,8 @@ const ARGV_SETUP = {
     type: 'string',
     demand: true,
   },
-  n: {
-    alias: 'new-version',
+  g: {
+    alias: 'target-version',
     type: 'string',
     demand: true,
   },
@@ -79,7 +79,7 @@ function generateChangelog(logBody) {
   return new Promise((resolve, reject) => {
     fs.readFile(templateFile, 'utf8', (error, template) => {
       const logContent = template
-        .replace(PLACEHOLDER.tag, argv.newVersion)
+        .replace(PLACEHOLDER.tag, argv.targetVersion)
         .replace(PLACEHOLDER.time, moment().format(TIME_FORMAT))
         .replace(PLACEHOLDER.log, logBody);
       prependFile(changelogFile, logContent + '\n');
