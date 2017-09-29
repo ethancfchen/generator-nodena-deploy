@@ -92,7 +92,7 @@ module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitAdd()
     .then(gitStatus)
-    .then((logBody) => generateChangelog(logBody))
+    .then(generateChangelog)
     .then(gitReset)
     .then(taskDone)
     .catch(gitReset);

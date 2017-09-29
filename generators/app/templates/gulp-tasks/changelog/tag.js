@@ -2,6 +2,7 @@ const config = require('config');
 const yargs = require('yargs');
 
 const $ = require('gulp-load-plugins')();
+
 const path = require('path');
 const fs = require('fs');
 
@@ -108,14 +109,21 @@ function generateChangelog(log) {
   });
 }
 
+function display(logContent) {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(logContent);
+    resolve();
+  });
+}
+
 module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitTagList()
-    .then((allTags) => getDiffTags(allTags))
-    .then((tag) => gitLogNameStatus(tag))
-    .then((logBody) => gitLogCommitTime(logBody))
-    .then((log) => generateChangelog(log))
-    .then((logContent) => process.stdout.write(logContent))
+    .then(getDiffTags)
+    .then(gitLogNameStatus)
+    .then(gitLogCommitTime)
+    .then(generateChangelog)
+    .then(display)
     .then(taskDone)
     .catch(taskDone);
 };

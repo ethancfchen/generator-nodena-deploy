@@ -57,7 +57,7 @@ function archive(files) {
 module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitCheckoutTo(argv.targetVersion)
-    .then((files) => archive(files))
+    .then(archive)
     .then(gitCheckoutTo)
     .then(taskDone)
     .catch(taskDone);

@@ -110,9 +110,9 @@ module.exports = function(taskDone) {
   argv = yargs.option(ARGV_SETUP).argv;
   gitCheckoutTo(argv.targetVersion)
     .then(gitTagList)
-    .then((tags) => getDiffTags(tags))
-    .then((tags) => gitDiffTree(tags))
-    .then((files) => archive(files))
+    .then(getDiffTags)
+    .then(gitDiffTree)
+    .then(archive)
     .then(gitCheckoutTo)
     .then(taskDone)
     .catch(taskDone);
