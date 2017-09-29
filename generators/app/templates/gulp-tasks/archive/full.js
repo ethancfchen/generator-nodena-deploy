@@ -59,5 +59,6 @@ module.exports = function(taskDone) {
   gitCheckoutTo(argv.targetVersion)
     .then((files) => archive(files))
     .then(gitCheckoutTo)
+    .then(taskDone)
     .catch(taskDone);
 };

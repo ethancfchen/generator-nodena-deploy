@@ -115,9 +115,7 @@ module.exports = function(taskDone) {
     .then((tag) => gitLogNameStatus(tag))
     .then((logBody) => gitLogCommitTime(logBody))
     .then((log) => generateChangelog(log))
-    .then((logContent) => {
-      process.stdout.write(logContent);
-      taskDone();
-    })
+    .then((logContent) => process.stdout.write(logContent))
+    .then(taskDone)
     .catch(taskDone);
 };

@@ -94,6 +94,6 @@ module.exports = function(taskDone) {
     .then(gitStatus)
     .then((logBody) => generateChangelog(logBody))
     .then(gitReset)
-    .catch(gitReset)
-    .then(taskDone);
+    .then(taskDone)
+    .catch(gitReset);
 };

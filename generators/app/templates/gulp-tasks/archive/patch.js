@@ -114,5 +114,6 @@ module.exports = function(taskDone) {
     .then((tags) => gitDiffTree(tags))
     .then((files) => archive(files))
     .then(gitCheckoutTo)
+    .then(taskDone)
     .catch(taskDone);
 };
