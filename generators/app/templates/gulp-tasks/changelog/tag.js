@@ -1,92 +1,62 @@
-const config = require('config');
-const yargs = require('yargs');
-
-const $ = require('gulp-load-plugins')();
-
 const path = require('path');
 const fs = require('fs');
+const $ = require('gulp-load-plugins')();
+const config = require('config');
 
-const ARGV_SETUP = {
-  t: {
-    alias: 'target',
-    type: 'string',
-    demand: true,
-  },
-  g: {
-    alias: 'target-version',
-    type: 'string',
-    demand: true,
-  },
-};
 const PLACEHOLDER = {
   tag: '{tag}',
   time: '{time}',
   log: '{log}',
 };
 
-let argv = {};
-
 function gitTagList() {
-  const command = ['tag', '-l', '--sort=v:refname'].join(' ');
   return new Promise((resolve, reject) => {
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-      quiet: true,
-    }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
+    const args = ['tag', '-l', '--sort=v:refname'].join(' ');
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
       resolve(stdout.trim().split('\n'));
     });
   });
 }
 
-function getDiffTags(allTags) {
-  const targetTag = argv.targetVersion;
+function getDiffTags(allTags, target) {
   return new Promise((resolve, reject) => {
-    let prevTag = '';
-    if (!allTags.includes(targetTag)) {
-      reject(new Error(`Tag not found: ${targetTag}`));
+    if (!allTags.includes(target)) {
+      return reject(new Error(`Tag not found: ${target}`));
     }
-    prevTag = allTags[allTags.indexOf(targetTag) - 1] || '';
-    resolve({prevTag, targetTag});
+    resolve({
+      src: allTags[allTags.indexOf(target) - 1] || '',
+      dest: target,
+    });
   });
 }
 
-function gitLogNameStatus(tag) {
-  const srcTag = tag.prevTag;
-  const destTag = tag.targetTag;
-  const targetPath = path.join(config.dist, argv.target);
+function gitLogNameStatus(tags, dist) {
+  const srcTag = tags.src;
+  const destTag = tags.dest;
+  const distPath = path.join(config.dist, dist);
   return new Promise((resolve, reject) => {
-    const command = [
+    const args = [
       'log', '--name-status', '--oneline', '--pretty=""',
-      `${srcTag}..${destTag}`, '--', targetPath,
+      `${srcTag}..${destTag}`, '--', distPath,
     ].join(' ');
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-      quiet: true,
-    }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
       resolve(stdout.trim());
     });
   });
 }
 
-function gitLogCommitTime(logBody) {
-  const version = argv.targetVersion;
+function gitLogCommitTime(logBody, version) {
   return new Promise((resolve, reject) => {
     const args = ['log', '-1', '--format=%ai', version].join(' ');
     $.git.exec({
       args,
       maxBuffer: config.stdoutMaxBuffer,
     }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
+      if (error) return reject(error);
       resolve({
         version,
         time: stdout.trim(),
@@ -104,6 +74,7 @@ function generateChangelog(log) {
         .replace(PLACEHOLDER.tag, log.version)
         .replace(PLACEHOLDER.time, log.time)
         .replace(PLACEHOLDER.log, log.body);
+      if (error) return reject(error);
       resolve(logContent);
     });
   });
@@ -117,13 +88,15 @@ function display(logContent) {
 }
 
 module.exports = function(taskDone) {
-  argv = yargs.option(ARGV_SETUP).argv;
+  const argv = config.argv;
+  const dist = argv.dist;
+  const version = argv.releaseVersion;
   gitTagList()
-    .then(getDiffTags)
-    .then(gitLogNameStatus)
-    .then(gitLogCommitTime)
-    .then(generateChangelog)
-    .then(display)
+    .then((allTags) => getDiffTags(allTags, version))
+    .then((tags) => gitLogNameStatus(tags, dist))
+    .then((logBody) => gitLogCommitTime(logBody, version))
+    .then((log) => generateChangelog(log))
+    .then((log) => display(log))
     .then(taskDone)
     .catch(taskDone);
 };

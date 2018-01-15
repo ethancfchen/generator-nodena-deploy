@@ -1,119 +1,88 @@
-const config = require('config');
-const yargs = require('yargs');
 const path = require('path');
-
 const gulp = require('gulp');
 const $ = require('gulp-load-plugins')();
+const config = require('config');
 
-const ARGV_SETUP = {
-  t: {
-    alias: 'target',
-    type: 'string',
-    nargs: 1,
-    demand: true,
-  },
-  g: {
-    alias: 'target-version',
-    type: 'string',
-    nargs: 1,
-    demand: true,
-  },
-};
-
-let argv = {};
-
-function gitCheckoutTo(version) {
-  const targetTag = version || 'HEAD';
-  const targetPath = path.join(config.dist, argv.target);
+function gitCheckoutTo(commit, dist) {
   return new Promise((resolve, reject) => {
-    const command = ['checkout', targetTag, targetPath].join(' ');
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error) => {
-      if (error) {
-        reject(error);
-      }
+    const distPath = path.join(config.dist, dist);
+    const args = ['checkout', commit, distPath].join(' ');
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error) => {
+      if (error) return reject(error);
       resolve();
     });
   });
 }
 
 function gitTagList() {
-  const command = ['tag', '-l', '--sort=v:refname'].join(' ');
   return new Promise((resolve, reject) => {
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
+    const args = ['tag', '-l', '--sort=v:refname'].join(' ');
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
       resolve(stdout.trim().split('\n'));
     });
   });
 }
 
-function getDiffTags(tags) {
-  const targetTag = argv.targetVersion;
+function getDiffTags(allTags, target) {
   return new Promise((resolve, reject) => {
-    let prevTag = '';
-    if (!tags.includes(targetTag)) {
-      reject(new Error(`Tag not found: ${targetTag}`));
+    if (!allTags.includes(target)) {
+      return reject(new Error(`Tag not found: ${target}`));
     }
-    prevTag = tags[tags.indexOf(targetTag) - 1] || '';
-    resolve({prevTag, targetTag});
+    resolve({
+      src: allTags[allTags.indexOf(target) - 1] || '',
+      dest: target,
+    });
   });
 }
 
-function gitDiffTree(tags) {
-  const srcTag = tags.prevTag;
-  const destTag = tags.targetTag;
-  const targetPath = path.join(config.dist, argv.target);
+function gitDiffTree(tags, target) {
   return new Promise((resolve, reject) => {
-    const command = [
+    const srcTag = tags.src;
+    const destTag = tags.dest;
+    const distPath = path.join(config.dist, target);
+    const args = [
       'diff-tree', '-r', '--name-only', '--no-commit-id',
       srcTag.length > 0 ? `${srcTag}..${destTag}` : destTag,
-      '--', targetPath,
+      '--', distPath,
     ].join(' ');
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
       resolve(stdout.trim().split('\n'));
     });
   });
 }
 
-function archive(files) {
-  const target = argv.target;
-  const targetVersion = argv.targetVersion;
-  const distPath = path.join(config.dist, target);
+function archive(files, target, version) {
   return new Promise((resolve, reject) => {
-    const blobs = files.map((filepath) => {
+    const distPath = path.join(config.dist, target);
+    const archivePath = config.archive;
+    const blobs = Array.prototype.map.call(files || [], (filepath) => {
       return filepath.replace(distPath, '**');
     });
     gulp
       .src(blobs, {cwd: distPath})
-      .pipe($.tar(`${targetVersion}.patch.tar`))
+      .pipe($.tar(`${version}.patch.tar`))
       .pipe($.gzip())
-      .pipe(gulp.dest('./', {cwd: config.archive}))
+      .pipe(gulp.dest('./', {cwd: archivePath}))
       .on('end', resolve)
       .on('error', reject);
   });
 }
 
 module.exports = function(taskDone) {
-  argv = yargs.option(ARGV_SETUP).argv;
-  gitCheckoutTo(argv.targetVersion)
-    .then(gitTagList)
-    .then(getDiffTags)
-    .then(gitDiffTree)
-    .then(archive)
-    .then(gitCheckoutTo)
+  const argv = config.argv;
+  const dist = argv.dist;
+  const version = argv.releaseVersion;
+  gitCheckoutTo(version, dist)
+    .then(() => gitTagList())
+    .then((allTags) => getDiffTags(allTags, version))
+    .then((tags) => gitDiffTree(tags, dist))
+    .then((files) => archive(files, dist, version))
+    .then(() => gitCheckoutTo('HEAD', dist))
     .then(taskDone)
     .catch(taskDone);
 };

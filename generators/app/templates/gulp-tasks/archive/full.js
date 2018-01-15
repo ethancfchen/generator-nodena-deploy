@@ -1,64 +1,41 @@
-const config = require('config');
-const yargs = require('yargs');
 const path = require('path');
-
 const gulp = require('gulp');
 const $ = require('gulp-load-plugins')();
+const config = require('config');
 
-const ARGV_SETUP = {
-  t: {
-    alias: 'target',
-    type: 'string',
-    nargs: 1,
-    demand: true,
-  },
-  g: {
-    alias: 'target-version',
-    type: 'string',
-    nargs: 1,
-    demand: true,
-  },
-};
-
-let argv = {};
-
-function gitCheckoutTo(version) {
-  const targetTag = version || 'HEAD';
-  const targetPath = path.join(config.dist, argv.target);
+function gitCheckoutTo(commit, dist) {
   return new Promise((resolve, reject) => {
-    const command = ['checkout', targetTag, targetPath].join(' ');
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error) => {
-      if (error) {
-        reject(error);
-      }
+    const distPath = path.join(config.dist, dist);
+    const args = ['checkout', commit, distPath].join(' ');
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
       resolve();
     });
   });
 }
 
-function archive(files) {
-  const target = argv.target;
-  const targetVersion = argv.targetVersion;
-  const distPath = path.join(config.dist, target);
+function archive(target, version) {
   return new Promise((resolve, reject) => {
+    const distPath = path.join(config.dist, target);
+    const archivePath = config.archive;
     gulp
       .src('**/*', {cwd: distPath})
-      .pipe($.tar(`${targetVersion}.tar`))
+      .pipe($.tar(`${version}.tar`))
       .pipe($.gzip())
-      .pipe(gulp.dest('./', {cwd: config.archive}))
+      .pipe(gulp.dest('./', {cwd: archivePath}))
       .on('end', resolve)
       .on('error', reject);
   });
 }
 
 module.exports = function(taskDone) {
-  argv = yargs.option(ARGV_SETUP).argv;
-  gitCheckoutTo(argv.targetVersion)
-    .then(archive)
-    .then(gitCheckoutTo)
+  const argv = config.argv;
+  const dist = argv.dist;
+  const version = argv.releaseVersion;
+  gitCheckoutTo(version, dist)
+    .then(() => archive(dist, version))
+    .then(() => gitCheckoutTo('HEAD', dist))
     .then(taskDone)
     .catch(taskDone);
 };

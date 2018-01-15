@@ -1,24 +1,10 @@
-const config = require('config');
-const yargs = require('yargs');
-const moment = require('moment');
-
-const $ = require('gulp-load-plugins')();
 const path = require('path');
 const fs = require('fs');
+const moment = require('moment');
+const $ = require('gulp-load-plugins')();
 const prependFile = require('prepend-file');
+const config = require('config');
 
-const ARGV_SETUP = {
-  t: {
-    alias: 'target',
-    type: 'string',
-    demand: true,
-  },
-  g: {
-    alias: 'target-version',
-    type: 'string',
-    demand: true,
-  },
-};
 const TIME_FORMAT = 'YYYY-MM-DD HH:mm:ss ZZ';
 const PLACEHOLDER = {
   tag: '{tag}',
@@ -26,35 +12,25 @@ const PLACEHOLDER = {
   log: '{log}',
 };
 
-let argv = {};
-
-function gitAdd() {
-  const targetPath = path.join(config.dist, argv.target);
-  const command = ['add', targetPath].join(' ');
+function gitAdd(dist) {
   return new Promise((resolve, reject) => {
-    $.git.exec({
-      args: command,
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
-      resolve(targetPath);
+    const distPath = path.join(config.dist, dist);
+    const args = ['add', distPath].join(' ');
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.exec({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
+      resolve(distPath);
     });
   });
 }
 
-function gitStatus() {
-  const targetPath = path.join(config.dist, argv.target);
-  const args = ['--porcelain', '--', targetPath].join(' ');
+function gitStatus(dist) {
   return new Promise((resolve, reject) => {
-    $.git.status({
-      args,
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error, stdout) => {
-      if (error) {
-        reject(error);
-      }
+    const distPath = path.join(config.dist, dist);
+    const args = ['--porcelain', '--', distPath].join(' ');
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.status({args, maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
       resolve(stdout.trim());
     });
   });
@@ -62,38 +38,38 @@ function gitStatus() {
 
 function gitReset() {
   return new Promise((resolve, reject) => {
-    $.git.reset('HEAD', {
-      maxBuffer: config.stdoutMaxBuffer,
-    }, (error) => {
-      if (error) {
-        reject(error);
-      }
-      resolve();
+    const maxBuffer = config.stdoutMaxBuffer;
+    $.git.reset('HEAD', {maxBuffer}, (error, stdout) => {
+      if (error) return reject(error);
+      resolve(stdout);
     });
   });
 }
 
-function generateChangelog(logBody) {
-  const templateFile = config.template.changelog;
-  const changelogFile = config.readme;
+function generateChangelog(logBody, version) {
   return new Promise((resolve, reject) => {
+    const templateFile = config.template.changelog;
+    const changelogFile = config.readme;
     fs.readFile(templateFile, 'utf8', (error, template) => {
       const logContent = template
-        .replace(PLACEHOLDER.tag, argv.targetVersion)
+        .replace(PLACEHOLDER.tag, version)
         .replace(PLACEHOLDER.time, moment().format(TIME_FORMAT))
         .replace(PLACEHOLDER.log, logBody);
+      if (error) return reject(error);
       prependFile(changelogFile, logContent + '\n');
-      resolve();
+      resolve(logContent);
     });
   });
 }
 
 module.exports = function(taskDone) {
-  argv = yargs.option(ARGV_SETUP).argv;
-  gitAdd()
-    .then(gitStatus)
-    .then(generateChangelog)
-    .then(gitReset)
+  const argv = config.argv;
+  const dist = argv.dist;
+  const version = argv.releaseVersion;
+  gitAdd(dist)
+    .then(() => gitStatus(dist))
+    .then((logBody) => generateChangelog(logBody, version))
+    .then(() => gitReset())
     .then(taskDone)
     .catch(gitReset);
 };
