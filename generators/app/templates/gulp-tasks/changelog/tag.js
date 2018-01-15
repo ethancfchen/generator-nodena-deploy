@@ -8,6 +8,7 @@ const PLACEHOLDER = {
   time: '{time}',
   log: '{log}',
 };
+const TAG_SEPARATOR = '/';
 
 function gitTagList() {
   return new Promise((resolve, reject) => {
@@ -26,10 +27,18 @@ function getDiffTags(allTags, target) {
       return reject(new Error(`Tag not found: ${target}`));
     }
     resolve({
-      src: allTags[allTags.indexOf(target) - 1] || '',
+      src: getPreviousTag(allTags, target),
       dest: target,
     });
   });
+}
+
+function getPreviousTag(allTags, target) {
+  const prefix = target.split(TAG_SEPARATOR).slice(0, -1).join(TAG_SEPARATOR);
+  const candidates = Array.prototype.filter.call(allTags, (item) => {
+    return item.startsWith(prefix);
+  });
+  return candidates[candidates.indexOf(target) - 1] || '';
 }
 
 function gitLogNameStatus(tags, dist) {

@@ -3,6 +3,8 @@ const gulp = require('gulp');
 const $ = require('gulp-load-plugins')();
 const config = require('config');
 
+const TAG_SEPARATOR = '/';
+
 function gitCheckoutTo(commit, dist) {
   return new Promise((resolve, reject) => {
     const distPath = path.join(config.dist, dist);
@@ -32,10 +34,18 @@ function getDiffTags(allTags, target) {
       return reject(new Error(`Tag not found: ${target}`));
     }
     resolve({
-      src: allTags[allTags.indexOf(target) - 1] || '',
+      src: getPreviousTag(allTags, target),
       dest: target,
     });
   });
+}
+
+function getPreviousTag(allTags, target) {
+  const prefix = target.split(TAG_SEPARATOR).slice(0, -1).join(TAG_SEPARATOR);
+  const candidates = Array.prototype.filter.call(allTags, (item) => {
+    return item.startsWith(prefix);
+  });
+  return candidates[candidates.indexOf(target) - 1] || '';
 }
 
 function gitDiffTree(tags, target) {
