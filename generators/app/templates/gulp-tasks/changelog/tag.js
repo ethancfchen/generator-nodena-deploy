@@ -8,7 +8,7 @@ const PLACEHOLDER = {
   time: '{time}',
   log: '{log}',
 };
-const TAG_SEPARATOR = '/';
+const TAG_SEPARATOR = '-';
 
 function gitTagList() {
   return new Promise((resolve, reject) => {
