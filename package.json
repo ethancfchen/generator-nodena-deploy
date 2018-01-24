@@ -33,11 +33,11 @@
   },
   "devDependencies": {
     "coveralls": "^3.0.0",
-    "eslint": "^4.15.0",
+    "eslint": "^4.16.0",
     "eslint-config-google": "^0.9.1",
     "eslint-config-xo-space": "^0.17.0",
-    "jest": "^22.1.1",
-    "jest-cli": "^22.1.1",
+    "jest": "^22.1.4",
+    "jest-cli": "^22.1.4",
     "nsp": "^3.1.0",
     "yeoman-assert": "^3.1.0",
     "yeoman-test": "^1.7.0"
